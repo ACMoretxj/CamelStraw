@@ -1,6 +1,6 @@
-from camelstraw.core.job import Job
-from camelstraw.core.worker import WorkerManager
-from camelstraw.util import uid
+from .job import Job
+from .worker import WorkerManager
+from ..util import uid
 
 
 class Slave:
