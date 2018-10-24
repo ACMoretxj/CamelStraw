@@ -1,0 +1,4 @@
+APScheduler==3.5.3
+pytz==2018.5
+six==1.11.0
+tzlocal==1.5.1
