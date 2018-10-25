@@ -57,8 +57,6 @@ class Job(IAnalysable):
                     response = await client.post(self.__url, json=data or {})
                 # record result and call callback
                 content = await response.text() if response else 'empty message'
-                # TODO: debug
-                content = multiprocessing.current_process().name
                 self.__session_manager.close(response.status)
                 if isinstance(callback, Callable):
                     callback(status_code=response.status, content=content)

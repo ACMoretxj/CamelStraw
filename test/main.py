@@ -10,7 +10,7 @@ def callback(status_code, content):
 if __name__ == '__main__':
     slave = Slave()
     jobs = (
-        HttpGetJob('http://localhost', callback=callback),
+        HttpGetJob('http://127.0.0.1:8000/api/masters/?wxid=o3OBV421oPKObsergEFjwLuZomjs&subject=Chinese', callback=callback),
         HttpGetJob('http://127.0.0.1', callback=callback),
         HttpGetJob('http://localhost', callback=callback),
         HttpGetJob('http://127.0.0.1', callback=callback),

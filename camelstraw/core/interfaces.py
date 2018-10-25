@@ -64,7 +64,7 @@ class IAnalysable(metaclass=ABCMeta):
 
     @property
     def qps(self) -> int:
-        return self.total_request * 1000 // max(1, self.latency)
+        return self.success_request * 1000 // max(1, self.latency)
 
     @property
     def status(self) -> CoreStatus:
