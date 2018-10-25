@@ -1,3 +1,4 @@
+import json
 from abc import ABCMeta
 from collections import Iterable
 from enum import IntEnum
@@ -68,6 +69,21 @@ class IAnalysable(metaclass=ABCMeta):
     @property
     def status(self) -> CoreStatus:
         return self._status
+
+    @property
+    def json_result(self) -> str:
+        """
+        return test result in json format
+        :return:
+        """
+        data = {
+            'id': self.id,
+            'total_request': self.total_request,
+            'success_request': self.success_request,
+            'latency': self.latency,
+            'qps': self.qps
+        }
+        return json.dumps(data)
 
     def start(self, *args, **kwargs):
         if self.status != CoreStatus.INIT:

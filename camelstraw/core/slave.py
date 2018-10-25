@@ -23,3 +23,6 @@ class Slave(IDispatchable):
 
     def start(self):
         self.__worker_manager.start()
+
+    def stop(self):
+        self.__worker_manager.stop()

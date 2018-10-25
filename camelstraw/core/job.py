@@ -1,4 +1,5 @@
 import asyncio
+import multiprocessing
 from abc import ABCMeta, abstractmethod
 from typing import Callable, Dict, TypeVar
 
@@ -56,9 +57,11 @@ class Job(IAnalysable):
                     response = await client.post(self.__url, json=data or {})
                 # record result and call callback
                 content = await response.text() if response else 'empty message'
+                # TODO: debug
+                content = multiprocessing.current_process().name
                 self.__session_manager.close(response.status)
                 if isinstance(callback, Callable):
-                    callback(response=content)
+                    callback(status_code=response.status, content=content)
             except (HttpProcessingError, ClientError):
                 self.__session_manager.close(400)
 
@@ -76,7 +79,7 @@ class Job(IAnalysable):
                 if msg.type == WSMsgType.TEXT:
                     self.__session_manager.close(200)
                     if isinstance(callback, Callable):
-                        callback(response=msg.data)
+                        callback(status_code=200, content=msg.data)
                 else:
                     self.__session_manager.close(500)
                     await ws.close()
