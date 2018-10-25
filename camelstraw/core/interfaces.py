@@ -25,7 +25,11 @@ class CoreStatus(IntEnum):
 
 
 class IAnalysable(metaclass=ABCMeta):
-
+    """
+    generic interface for all analysable objects including
+    Session/Job/Worker etc, for the convenience of computing
+    and visualization
+    """
     def __init__(self, _id: str, _manager=None):
         self._id: str = _id
         self._manager: IManager = _manager
@@ -106,7 +110,11 @@ class IAnalysable(metaclass=ABCMeta):
 
 
 class IManager(metaclass=ABCMeta):
-
+    """
+    generic interface for all manager objects including
+    SessionManager/JobManager/WorkerManager etc, collecting
+    common logic for all managers
+    """
     def __init__(self, _id: str):
         self._id = _id
         self._container: List = []

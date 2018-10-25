@@ -1,1 +1,1 @@
-from .core import Job, HttpGetJob, HttpPostJob, WebsocketTextJob, WebsocketBinaryJob, Worker, Slave
+from .core import HttpGetJob, HttpPostJob, WebsocketTextJob, WebsocketBinaryJob, Slave

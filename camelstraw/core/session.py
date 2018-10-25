@@ -5,7 +5,7 @@ from ..net import Protocol
 
 class Session(IAnalysable):
     """
-    每一次请求的记录
+    record for every single request
     """
     def __init__(self, _protocol: Protocol, _url: str):
         super().__init__(uid(__class__.__name__))
@@ -32,28 +32,35 @@ class Session(IAnalysable):
     def analyse(self):
         super().analyse()
         self._total_request = 1
-        self._success_request = 1 if self.status == 200 else 0
+        self._success_request = 1 if self.status_code == 200 else 0
 
 
 class SessionManager(IManager):
     """
-    请求管理器，维护一个请求列表
+    maintain a session list, provide a pair of convenient functions
+    for adding a new session
     """
     def __init__(self):
         super().__init__(uid(__class__.__name__))
-        # 临时保存的session对象，SessionManager的一次打开和关闭是一个完整的生命周期
+        # temporary saved session object, a open & close operation
+        # is a complete life cycle of the session
         self.session: Session = None
 
     def open(self, protocol: Protocol, url: str) -> Session:
         """
-        打开一个Session
-        :return:
+        open a new session
+        :return: the session object
         """
         self.session = Session(_protocol=protocol, _url=url)
         self.session.start()
         return self.session
 
     def close(self, status_code: int=200) -> None:
+        """
+        close and save the opened session
+        :param status_code:
+        :return: None
+        """
         self.session.stop(_status_code=status_code)
         self._container.append(self.session)
         self.session = None
