@@ -1,6 +1,7 @@
 import asyncio
 from abc import ABCMeta, abstractmethod
-from typing import Callable, Dict, TypeVar
+from itertools import cycle, repeat
+from typing import Callable, Dict, TypeVar, Generator, Iterator
 
 from aiohttp import ClientSession as Client, ClientError, ClientWebSocketResponse, WSMessage
 from aiohttp import WSMsgType
@@ -10,8 +11,7 @@ from .session import SessionManager
 from .interfaces import IAnalysable, IManager, CoreStatus
 from ..util import uid
 from ..net import Protocol, HttpMethod
-AllMsgTypeHint = TypeVar('AllMsgTypeHint', Dict, str, bytes)
-WSMsgTypeHint = TypeVar('WSMsgTypeHint', str, bytes)
+DataType = TypeVar('DataType', Dict, str, bytes, Callable, Generator, Iterator)
 
 
 class Job(IAnalysable):
@@ -27,33 +27,47 @@ class Job(IAnalysable):
 
     async def start(self) -> asyncio.coroutine:
         super().start()
-        data = self.__job_kwargs.get('data', None)
-        headers = self.__job_kwargs.get('headers', {})
+        data = self.__data_iterator(self.__job_kwargs.get('data', None))
+        headers = self.__job_kwargs.get('headers', None)
         cookies = self.__job_kwargs.get('cookies', {})
         callback = self.__job_kwargs.get('callback', None)
-        return await self.__do_request(data=data, headers=headers, cookies=cookies, callback=callback)
+        await self.__do_request(data=data, headers=headers, cookies=cookies, callback=callback)
 
-    async def __do_request(self, data: AllMsgTypeHint=None, headers: Dict=None, cookies: Dict=None,
+    @staticmethod
+    def __data_iterator(data: DataType) -> Iterator:
+        """
+        transform all types to generator
+        :param data:
+        :return:
+        """
+        if isinstance(data, Generator) or isinstance(data, Iterator):
+            return cycle(data)
+        elif isinstance(data, Callable):
+            return repeat(data())
+        else:
+            return repeat(data or {})
+
+    async def __do_request(self, data: Iterator, headers: Dict=None, cookies: Dict=None,
                            callback: Callable=None):
         if self.__protocol == Protocol.HTTP or self.__protocol == Protocol.HTTPS:
             method = self.__job_kwargs.get('method', HttpMethod.GET)
             async with Client(headers=headers, cookies=cookies) as client:
-                return await self.__do_http_request(client, method, data, callback)
+                await self.__do_http_request(client, method, data, callback)
         elif self.__protocol == Protocol.WS or self.__protocol == Protocol.WSS:
             message_type = self.__job_kwargs.get('message_type', WSMsgType.TEXT)
             async with Client(headers=headers, cookies=cookies).ws_connect(self.__url) as ws:
-                return await self.__do_websocket_request(ws, message_type, data, callback)
+                await self.__do_websocket_request(ws, message_type, data, callback)
 
     async def __do_http_request(self, client: Client, method: HttpMethod,
-                                data: Dict=None, callback: Callable=None):
+                                data: Iterator, callback: Callable=None):
         while self.status == CoreStatus.STARTED:
             self.__session_manager.open(self.__protocol, self.__url)
             try:
                 response = None
                 if method == HttpMethod.GET:
-                    response = await client.get(self.__url, params=data or {})
+                    response = await client.get(self.__url, params=next(data))
                 elif method == HttpMethod.POST:
-                    response = await client.post(self.__url, json=data or {})
+                    response = await client.post(self.__url, json=next(data))
                 # record result and call callback
                 content = await response.text() if response else 'empty message'
                 self.__session_manager.close(response.status)
@@ -63,14 +77,14 @@ class Job(IAnalysable):
                 self.__session_manager.close(400)
 
     async def __do_websocket_request(self, ws: ClientWebSocketResponse, message_type: WSMsgType,
-                                     data: WSMsgTypeHint=None, callback: Callable=None):
+                                     data: Iterator, callback: Callable=None):
         while self.status == CoreStatus.STARTED:
             self.__session_manager.open(self.__protocol, self.__url)
             try:
                 if message_type == WSMsgType.TEXT:
-                    await ws.send_str(data)
+                    await ws.send_str(next(data))
                 elif message_type == WSMsgType.BINARY:
-                    await ws.send_bytes(data)
+                    await ws.send_bytes(next(data))
                 # record result and call callback
                 msg: WSMessage = await ws.receive()
                 if msg.type == WSMsgType.TEXT:
@@ -79,7 +93,6 @@ class Job(IAnalysable):
                         callback(status_code=200, content=msg.data)
                 else:
                     self.__session_manager.close(500)
-                    await ws.close()
             except (HttpProcessingError, ClientError):
                 self.__session_manager.close(400)
 
@@ -89,10 +102,10 @@ class JobContainer(metaclass=ABCMeta):
     transform from arguments to Job instance, expose this instead of Job because
     multi-processing environment is error prone
     """
-    def __init__(self, url: str, data: AllMsgTypeHint=None, headers: Dict=None, cookies: Dict=None,
+    def __init__(self, url: str, data: DataType=None, headers: Dict=None, cookies: Dict=None,
                  callback: Callable=None):
         self._url: str = url
-        self._data: AllMsgTypeHint = data
+        self._data: DataType = data
         self._headers: Dict = headers
         self._cookies: Dict = cookies
         self._callback: Callable = callback
@@ -107,7 +120,7 @@ class HttpGetJob(JobContainer):
     def job(self) -> Job:
         if self._job is None:
             self._job = Job(url=self._url, data=self._data, headers=self._headers, cookies=self._cookies,
-                            method=HttpMethod.POST, callback=self._callback)
+                            method=HttpMethod.GET, callback=self._callback)
         return self._job
 
 

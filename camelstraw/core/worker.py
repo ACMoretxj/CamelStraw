@@ -217,6 +217,6 @@ class WorkerManager(IManager, IDispatchable):
         latency = stop_time - start_time
         total_request = sum(tr.total_request for tr in tmp_results)
         success_result = sum(tr.success_request for tr in tmp_results)
-        qps = total_request * 1000 // max(1, latency)
+        qps = success_result * 1000 // max(1, latency)
         self.__result = AnalyseResult(id=self._id, total_request=total_request, success_request=success_result,
                                       latency=latency, qps=qps, start_time=start_time, stop_time=stop_time)

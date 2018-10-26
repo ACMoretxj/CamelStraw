@@ -1,3 +1,4 @@
+from .interfaces import AnalyseResult
 from ..util import uid, singleton
 from ..task import IDispatchable
 from .job import JobContainer
@@ -15,6 +16,10 @@ class Slave(IDispatchable):
     def id(self):
         return self.__id
 
+    @property
+    def result(self) -> AnalyseResult:
+        return self.__worker_manager.result
+
     def weight(self):
         return self.__worker_manager.weight()
 
@@ -27,4 +32,3 @@ class Slave(IDispatchable):
 
     def stop(self):
         self.__worker_manager.stop()
-        print(self.__worker_manager.result)
