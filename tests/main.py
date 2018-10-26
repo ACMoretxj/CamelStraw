@@ -3,7 +3,7 @@ import time
 from multiprocessing import Process
 
 from camelstraw import HttpGetJob, Slave, HttpPostJob, WebsocketTextJob, WebsocketBinaryJob
-from test.server import TestServer
+from tests.server import TestServer
 
 
 def start_server():
@@ -34,7 +34,7 @@ def start_test():
 if __name__ == '__main__':
     server_process = Process(target=start_server)
     server_process.start()
-    # test process is not necessary, you can just start it in the main process
+    # tests process is not necessary, you can just start it in the main process
     test_process = Process(target=start_test)
     test_process.start()
     test_process.join()

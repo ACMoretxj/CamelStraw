@@ -165,7 +165,7 @@ class WorkerManager(IManager, IDispatchable):
             self.__worker_num: int = min(max(worker_num, 1), cpu_count() * 2)
         # all workers communicate through this queue
         self.__queue = Queue(maxsize=self.worker_num * 2)
-        # test result
+        # tests result
         self.__result: AnalyseResult = None
         # add workers
         [self.add(Worker(queue=self.__queue)) for _ in range(self.worker_num)]

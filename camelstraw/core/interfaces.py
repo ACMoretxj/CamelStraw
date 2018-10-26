@@ -93,7 +93,7 @@ class IAnalysable(metaclass=ABCMeta):
     @property
     def result(self) -> AnalyseResult:
         """
-        return test result in namedtuple result
+        return tests result in namedtuple result
         :return:
         """
         return AnalyseResult(id=self.id, total_request=self.total_request, success_request=self.success_request,
@@ -102,7 +102,7 @@ class IAnalysable(metaclass=ABCMeta):
     @property
     def json_result(self) -> str:
         """
-        return test result in json format
+        return tests result in json format
         :return:
         """
         data = {
