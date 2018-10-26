@@ -1,9 +1,10 @@
-from camelstraw.util import uid
+from ..util import uid, singleton
 from ..task import IDispatchable
 from .job import JobContainer
 from .worker import WorkerManager
 
 
+@singleton
 class Slave(IDispatchable):
 
     def __init__(self):
@@ -26,3 +27,4 @@ class Slave(IDispatchable):
 
     def stop(self):
         self.__worker_manager.stop()
+        print(self.__worker_manager.result)

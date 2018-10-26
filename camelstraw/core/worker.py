@@ -1,17 +1,16 @@
 import asyncio
 import multiprocessing
 import sys
-import time
 from multiprocessing import Process, cpu_count, Lock as ProcessLock, Queue
 from queue import Empty
-from typing import TypeVar
+from typing import TypeVar, List
 
 from ..settings import WORKER_TIMEOUT, WORKER_CHECK_INTERVAL
 from ..exception import WrongStatusException, WorkerExecuteException
 from .job import JobManager, Job, JobContainer
-from .interfaces import IAnalysable, IManager, CoreStatus
+from .interfaces import IAnalysable, IManager, CoreStatus, AnalyseResult
 from ..task import RoundRobin, IDispatchable
-from ..util import uid
+from ..util import uid, singleton
 AllJobTypeHint = TypeVar('AllJobTypeHint', Job, JobContainer)
 
 
@@ -29,8 +28,7 @@ def __try_stop_and_analyse(worker):
             worker.stop()
             worker.analyse()
             # send compute result to worker manager
-            with worker.queue_lock:
-                worker.queue.put(('result', worker.json_result))
+            worker.queue.put(('result', worker.result))
         except WrongStatusException:
             pass
 
@@ -51,7 +49,7 @@ async def __work_timeout(worker, timeout=WORKER_TIMEOUT):
     __try_stop_and_analyse(worker)
 
 
-async def __worker_notice(worker):
+async def __work_notice(worker):
     """
     worker's stop trigger for message queue mechanism
     :param worker:
@@ -59,17 +57,16 @@ async def __worker_notice(worker):
     """
     interval = max(1, int(WORKER_CHECK_INTERVAL))
     while worker.status == CoreStatus.STARTED:
-        with worker.queue_lock:
-            try:
-                message = worker.queue.get_nowait()
-                if message[0] == 'stop':
-                    # it's a stop command from manager, stop self
-                    break
-                else:
-                    # it's a result message from worker, put it back
-                    worker.queue.put(message)
-            except Empty:
-                pass
+        try:
+            message = worker.queue.get_nowait()
+            if message[0] == 'stop':
+                # it's a stop command from manager, stop self
+                break
+            else:
+                # it's a result message from worker, put it back
+                worker.queue.put(message)
+        except Empty:
+            pass
         # wait several seconds and go on getting
         await asyncio.sleep(interval)
     __try_stop_and_analyse(worker)
@@ -83,7 +80,7 @@ async def __stop_work(worker, timeout=None) -> asyncio.Future:
     :return:
     """
     tasks = (
-        __worker_notice(worker),
+        __work_notice(worker),
         __work_timeout(worker, timeout),
     )
     return asyncio.gather(*tasks)
@@ -112,14 +109,12 @@ class Worker(IAnalysable, IDispatchable):
     so that all the communication with main process should
     be done in a message queue
     """
-    def __init__(self, queue_lock: ProcessLock, queue: Queue, weight=1):
+    def __init__(self, queue: Queue, weight=1):
         self.__job_manager: JobManager = JobManager()
         # the worker itself has an another lock for correctly perform stop & analyse action
         # ThreadLock(Lock in asyncio) can't be pickled, so using
         # ProcessLock(Lock in multiprocessing) instead of ThreadLock
         self.__lock = ProcessLock()
-        # all workers use the same queue lock to get content from queue
-        self.__queue_lock = queue_lock
         # all workers user the same queue to communicate with manager
         self.__queue = queue
         self.__weight: int = weight
@@ -130,16 +125,16 @@ class Worker(IAnalysable, IDispatchable):
         return self.__lock
 
     @property
-    def queue_lock(self):
-        return self.__queue_lock
-
-    @property
     def queue(self):
         return self.__queue
 
+    @property
+    def job_num(self):
+        return len(list(self.__job_manager))
+
     def start(self) -> None:
         # not dispatched jobs, just return
-        if len(list(self.__job_manager)) <= 0:
+        if self.job_num <= 0:
             return
         process = Process(target=start_work, args=(list(self.__job_manager), self))
         super().start()
@@ -156,6 +151,7 @@ class Worker(IAnalysable, IDispatchable):
         return self.__weight
 
 
+@singleton
 class WorkerManager(IManager, IDispatchable):
     """
     initialize workers and dispatch jobs for them
@@ -163,15 +159,24 @@ class WorkerManager(IManager, IDispatchable):
     def __init__(self, worker_num: int=None):
         super().__init__(uid(__class__.__name__))
         self.__balancer = RoundRobin()
-        # all workers communicate safely by this lock
-        self.__queue_lock = ProcessLock()
-        # all workers communicate through this queue
-        self.__queue = Queue()
         if worker_num is None:
             self.__worker_num = cpu_count()
         else:
             self.__worker_num: int = min(max(worker_num, 1), cpu_count() * 2)
-        [self.add(Worker(queue_lock=self.__queue_lock, queue=self.__queue)) for _ in range(self.__worker_num)]
+        # all workers communicate through this queue
+        self.__queue = Queue(maxsize=self.worker_num * 2)
+        # test result
+        self.__result: AnalyseResult = None
+        # add workers
+        [self.add(Worker(queue=self.__queue)) for _ in range(self.worker_num)]
+
+    @property
+    def worker_num(self):
+        return self.__worker_num
+
+    @property
+    def result(self) -> AnalyseResult:
+        return self.__result
 
     def dispatch(self, job: AllJobTypeHint, worker: Worker=None) -> None:
         if worker is None:
@@ -186,16 +191,32 @@ class WorkerManager(IManager, IDispatchable):
         return self.__worker_num
 
     def start(self):
+        # eliminate workers without any job and update associate field
+        self._container = [worker for worker in self._container if worker.job_num > 0]
+        self.__worker_num = len(self._container)
+        # start all workers
         [worker.start() for worker in self._container]
 
     def stop(self):
         # send stop signals
-        with self.__queue_lock:
-            for i in range(self.__worker_num):
-                self.__queue.put(('stop', None))
-        # gather results
-        time.sleep(15)
-        results = []
         for i in range(self.__worker_num):
-            results.append(self.__queue.get())
-        print(results)
+            self.__queue.put(('stop', None))
+        # gather results
+        tmp_results: List[AnalyseResult] = []
+        while len(tmp_results) < self.worker_num:
+            message = self.__queue.get()
+            # gather result message
+            if message[0] == 'result':
+                tmp_results.append(message[1])
+            # put other messages back
+            else:
+                self.__queue.put(message)
+        # generate self result
+        start_time = min(tr.start_time for tr in tmp_results)
+        stop_time = max(tr.stop_time for tr in tmp_results)
+        latency = stop_time - start_time
+        total_request = sum(tr.total_request for tr in tmp_results)
+        success_result = sum(tr.success_request for tr in tmp_results)
+        qps = total_request * 1000 // max(1, latency)
+        self.__result = AnalyseResult(id=self._id, total_request=total_request, success_request=success_result,
+                                      latency=latency, qps=qps, start_time=start_time, stop_time=stop_time)

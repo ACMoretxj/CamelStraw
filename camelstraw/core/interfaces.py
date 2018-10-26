@@ -1,11 +1,11 @@
 import json
 from abc import ABCMeta
-from collections import Iterable
+from collections import Iterable, namedtuple
 from enum import IntEnum
 from typing import List
 
 from ..exception import WrongStatusException
-from ..util import Stopwatch
+from ..util import Stopwatch, TimeFormat
 
 
 class CoreStatus(IntEnum):
@@ -23,6 +23,10 @@ class CoreStatus(IntEnum):
     STARTED = 101, 'CoreStatusStarted'
     STOPPED = 103, 'CoreStatusStopped'
     ANALYSED = 104, 'CoreStatusAnalysed'
+
+
+AnalyseResult = namedtuple('AnalyseResult', ['id', 'total_request', 'success_request',
+                                             'latency', 'qps', 'start_time', 'stop_time'])
 
 
 class IAnalysable(metaclass=ABCMeta):
@@ -71,6 +75,31 @@ class IAnalysable(metaclass=ABCMeta):
         return self._status
 
     @property
+    def start_time(self) -> int:
+        """
+        milliseconds
+        :return:
+        """
+        return self._stopwatch.start_time
+
+    @property
+    def stop_time(self) -> int:
+        """
+        milliseconds
+        :return:
+        """
+        return self.start_time + self.latency
+
+    @property
+    def result(self) -> AnalyseResult:
+        """
+        return test result in namedtuple result
+        :return:
+        """
+        return AnalyseResult(id=self.id, total_request=self.total_request, success_request=self.success_request,
+                             latency=self.latency, qps=self.qps, start_time=self.start_time, stop_time=self.stop_time)
+
+    @property
     def json_result(self) -> str:
         """
         return test result in json format
@@ -81,7 +110,9 @@ class IAnalysable(metaclass=ABCMeta):
             'total_request': self.total_request,
             'success_request': self.success_request,
             'latency': self.latency,
-            'qps': self.qps
+            'qps': self.qps,
+            'start_time': self.start_time,
+            'stop_time': self.stop_time
         }
         return json.dumps(data)
 
@@ -121,6 +152,8 @@ class IAnalysable(metaclass=ABCMeta):
             'Request: %s/%s' % (self.success_request, self.total_request),
             'Latency: %s ms' % self.latency,
             'QPS: %s' % self.qps,
+            'Start Time: %s' % TimeFormat.from_millisecond(self.start_time),
+            'Stop Time: %s' % TimeFormat.from_millisecond(self.stop_time),
             '=' * 128]
         return '\n'.join(reprs)
 
