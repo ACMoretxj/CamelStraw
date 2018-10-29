@@ -5,14 +5,8 @@ class Stopwatch:
 
     def __init__(self):
         self.__start_time: float = None
-
-    @property
-    def start_time(self) -> int:
-        """
-        milliseconds
-        :return:
-        """
-        return int(self.__start_time * 1000)
+        # milliseconds
+        self.start_time = property(lambda: int(self.__start_time * 1000))
 
     def start(self):
         self.__start_time = time.time()

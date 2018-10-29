@@ -1,6 +1,8 @@
 import asyncio
+import json
 from abc import ABCMeta, abstractmethod
 from itertools import cycle, repeat
+from json import JSONDecodeError
 from typing import Callable, Dict, TypeVar, Generator, Iterator
 
 from aiohttp import ClientSession as Client, ClientError, ClientWebSocketResponse, WSMessage

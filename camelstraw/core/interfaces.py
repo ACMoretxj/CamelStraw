@@ -1,11 +1,13 @@
 import json
 from abc import ABCMeta
-from collections import Iterable, namedtuple
+from collections import Iterable
 from enum import IntEnum
-from typing import List
+from json import JSONDecodeError
+from typing import List, TypeVar, Dict
 
 from ..exception import WrongStatusException
 from ..util import Stopwatch, TimeFormat
+AnalyseResultType = TypeVar('AnalyseResultType', str, Dict)
 
 
 class CoreStatus(IntEnum):
@@ -25,8 +27,77 @@ class CoreStatus(IntEnum):
     ANALYSED = 104, 'CoreStatusAnalysed'
 
 
-AnalyseResult = namedtuple('AnalyseResult', ['id', 'total_request', 'success_request',
-                                             'latency', 'qps', 'start_time', 'stop_time'])
+class AnalyseResult:
+
+    @classmethod
+    def from_json(cls, data: AnalyseResultType):
+        try:
+            if isinstance(data, str):
+                data = json.loads(data)
+        except (ValueError, JSONDecodeError):
+            raise
+
+        assert 'id' in data
+        assert 'total_request' in data
+        assert 'success_request' in data
+        assert 'latency' in data
+        assert 'qps' in data
+        assert 'start_time' in data
+        assert 'stop_time' in data
+
+        return AnalyseResult(_id=data['id'], total_request=data['total_request'],
+                             success_request=data['success_request'], latency=data['latency'], qps=data['qps'],
+                             start_time=data['start_time'], stop_time=data['stop_time'])
+
+    @classmethod
+    def from_results(cls, _id: str, results: List):
+        start_time = min(r.start_time for r in results)
+        stop_time = max(r.stop_time for r in results)
+        latency = stop_time - start_time
+        total_request = sum(r.total_request for r in results)
+        success_result = sum(r.success_request for r in results)
+        qps = success_result * 1000 // max(1, latency)
+        return AnalyseResult(_id=_id, total_request=total_request, success_request=success_result,
+                             latency=latency, qps=qps, start_time=start_time, stop_time=stop_time)
+
+    def __init__(self, _id: str, total_request: int, success_request: int, latency: int, qps: int,
+                 start_time: int, stop_time: int):
+        self.id = property(lambda: _id)
+        self.total_request = property(lambda: total_request)
+        self.success_request = property(lambda: success_request)
+        self.latency = property(lambda: latency)
+        self.qps = property(lambda: qps)
+        self.start_time = property(lambda: start_time)
+        self.stop_time = property(lambda: stop_time)
+
+    def __repr__(self):
+        reprs = [
+            '=' * 128,
+            'Id: %s' % self.id,
+            'Request: %s/%s' % (self.success_request, self.total_request),
+            'Latency: %s ms' % self.latency,
+            'QPS: %s' % self.qps,
+            'Start Time: %s' % TimeFormat.from_millisecond(self.start_time),
+            'Stop Time: %s' % TimeFormat.from_millisecond(self.stop_time),
+            '=' * 128]
+        return '\n'.join(reprs)
+
+    @property
+    def json_result(self) -> str:
+        """
+        return tests result in json format
+        :return:
+        """
+        data = {
+            'id': self.id,
+            'total_request': self.total_request,
+            'success_request': self.success_request,
+            'latency': self.latency,
+            'qps': self.qps,
+            'start_time': self.start_time,
+            'stop_time': self.stop_time
+        }
+        return json.dumps(data)
 
 
 class IAnalysable(metaclass=ABCMeta):
@@ -36,17 +107,20 @@ class IAnalysable(metaclass=ABCMeta):
     and visualization
     """
     def __init__(self, _id: str, _manager=None):
-        self._id: str = _id
         self._manager: IManager = _manager
+        self._status: CoreStatus = CoreStatus.INIT
+        self._stopwatch: Stopwatch = Stopwatch()
         self._total_request: int = 0
         self._success_request: int = 0
         self._latency: int = 0
-        self._stopwatch: Stopwatch = Stopwatch()
-        self._status: CoreStatus = CoreStatus.INIT
+        self._analyse_result: AnalyseResult = None
 
-    @property
-    def id(self) -> str:
-        return self._id
+        self.id: property = property(lambda: _id)
+        self.qps = property(lambda: self.success_request * 1000 // max(1, self.latency))
+        self.start_time = property(lambda: self._stopwatch.start_time)
+        self.stop_time = property(lambda: self.start_time + self.latency)
+        self.status = property(lambda: self._status)
+        self.result = property(lambda: self._analyse_result)
 
     @property
     def total_request(self) -> int:
@@ -65,56 +139,6 @@ class IAnalysable(metaclass=ABCMeta):
         if self.status != CoreStatus.ANALYSED:
             raise WrongStatusException('_latency is not computed')
         return self._latency
-
-    @property
-    def qps(self) -> int:
-        return self.success_request * 1000 // max(1, self.latency)
-
-    @property
-    def status(self) -> CoreStatus:
-        return self._status
-
-    @property
-    def start_time(self) -> int:
-        """
-        milliseconds
-        :return:
-        """
-        return self._stopwatch.start_time
-
-    @property
-    def stop_time(self) -> int:
-        """
-        milliseconds
-        :return:
-        """
-        return self.start_time + self.latency
-
-    @property
-    def result(self) -> AnalyseResult:
-        """
-        return tests result in namedtuple result
-        :return:
-        """
-        return AnalyseResult(id=self.id, total_request=self.total_request, success_request=self.success_request,
-                             latency=self.latency, qps=self.qps, start_time=self.start_time, stop_time=self.stop_time)
-
-    @property
-    def json_result(self) -> str:
-        """
-        return tests result in json format
-        :return:
-        """
-        data = {
-            'id': self.id,
-            'total_request': self.total_request,
-            'success_request': self.success_request,
-            'latency': self.latency,
-            'qps': self.qps,
-            'start_time': self.start_time,
-            'stop_time': self.stop_time
-        }
-        return json.dumps(data)
 
     def start(self, *args, **kwargs):
         if self.status != CoreStatus.INIT:
@@ -139,23 +163,20 @@ class IAnalysable(metaclass=ABCMeta):
             raise WrongStatusException('IAnalysable<%s with %s> can only be analysed at stopped status'
                                        % (self.__class__.__name__, self.status))
         self._status = CoreStatus.ANALYSED
+        if self._analyse_result is not None:
+            return
         if self._manager is not None:
             for item in self._manager:
                 item.analyse()
                 self._total_request += item.total_request
                 self._success_request += item.success_request
+            # record analyse result
+            self._analyse_result = AnalyseResult(_id=self.id, total_request=self.total_request,
+                                                 success_request=self.success_request, latency=self.latency,
+                                                 qps=self.qps, start_time=self.start_time, stop_time=self.stop_time)
 
     def __repr__(self):
-        reprs = [
-            '=' * 128,
-            'Id: %s' % self.id,
-            'Request: %s/%s' % (self.success_request, self.total_request),
-            'Latency: %s ms' % self.latency,
-            'QPS: %s' % self.qps,
-            'Start Time: %s' % TimeFormat.from_millisecond(self.start_time),
-            'Stop Time: %s' % TimeFormat.from_millisecond(self.stop_time),
-            '=' * 128]
-        return '\n'.join(reprs)
+        return str(self.result)
 
 
 class IManager(metaclass=ABCMeta):
@@ -165,7 +186,7 @@ class IManager(metaclass=ABCMeta):
     common logic for all managers
     """
     def __init__(self, _id: str):
-        self._id = _id
+        self.id = property(lambda: _id)
         self._container: List = []
 
     def add(self, obj: IAnalysable) -> None:

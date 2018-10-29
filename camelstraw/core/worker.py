@@ -111,6 +111,7 @@ class Worker(IAnalysable, IDispatchable):
     """
     def __init__(self, queue: Queue, weight=1):
         self.__job_manager: JobManager = JobManager()
+        super().__init__(uid(__class__.__name__), self.__job_manager)
         # the worker itself has an another lock for correctly perform stop & analyse action
         # ThreadLock(Lock in asyncio) can't be pickled, so using
         # ProcessLock(Lock in multiprocessing) instead of ThreadLock
@@ -118,19 +119,10 @@ class Worker(IAnalysable, IDispatchable):
         # all workers user the same queue to communicate with manager
         self.__queue = queue
         self.__weight: int = weight
-        super().__init__(uid(__class__.__name__), self.__job_manager)
-
-    @property
-    def lock(self):
-        return self.__lock
-
-    @property
-    def queue(self):
-        return self.__queue
-
-    @property
-    def job_num(self):
-        return len(list(self.__job_manager))
+        # properties
+        self.lock = property(lambda: self.__lock)
+        self.queue = property(lambda: self.__queue)
+        self.job_num = property(lambda: len(list(self.__job_manager)))
 
     def start(self) -> None:
         # not dispatched jobs, just return
@@ -152,31 +144,21 @@ class Worker(IAnalysable, IDispatchable):
 
 
 @singleton
-class WorkerManager(IManager, IDispatchable):
+class WorkerManager(IManager):
     """
     initialize workers and dispatch jobs for them
     """
-    def __init__(self, worker_num: int=None):
+    def __init__(self, worker_num: int=cpu_count()):
         super().__init__(uid(__class__.__name__))
         self.__balancer = RoundRobin()
-        if worker_num is None:
-            self.__worker_num = cpu_count()
-        else:
-            self.__worker_num: int = min(max(worker_num, 1), cpu_count() * 2)
+        self.__worker_num: int = min(max(worker_num, 1), cpu_count() * 2)
         # all workers communicate through this queue
         self.__queue = Queue(maxsize=self.worker_num * 2)
-        # tests result
         self.__result: AnalyseResult = None
-        # add workers
         [self.add(Worker(queue=self.__queue)) for _ in range(self.worker_num)]
-
-    @property
-    def worker_num(self):
-        return self.__worker_num
-
-    @property
-    def result(self) -> AnalyseResult:
-        return self.__result
+        # properties
+        self.worker_num = property(lambda: self.__worker_num)
+        self.result = property(lambda: self.__result)
 
     def dispatch(self, job: AllJobTypeHint, worker: Worker=None) -> None:
         if worker is None:
@@ -186,9 +168,6 @@ class WorkerManager(IManager, IDispatchable):
         elif isinstance(job, Job):
             pass
         worker.dispatch(job)
-
-    def weight(self) -> int:
-        return self.__worker_num
 
     def start(self):
         # eliminate workers without any job and update associate field
@@ -212,11 +191,4 @@ class WorkerManager(IManager, IDispatchable):
             else:
                 self.__queue.put(message)
         # generate self result
-        start_time = min(tr.start_time for tr in tmp_results)
-        stop_time = max(tr.stop_time for tr in tmp_results)
-        latency = stop_time - start_time
-        total_request = sum(tr.total_request for tr in tmp_results)
-        success_result = sum(tr.success_request for tr in tmp_results)
-        qps = success_result * 1000 // max(1, latency)
-        self.__result = AnalyseResult(id=self._id, total_request=total_request, success_request=success_result,
-                                      latency=latency, qps=qps, start_time=start_time, stop_time=stop_time)
+        self.__result = AnalyseResult.from_results(self.id, tmp_results)

@@ -1,31 +1,19 @@
-from .interfaces import AnalyseResult
 from ..util import uid, singleton
-from ..task import IDispatchable
 from .job import JobContainer
 from .worker import WorkerManager
 
 
 @singleton
-class Slave(IDispatchable):
+class Slave:
 
-    def __init__(self):
-        self.__id: str = uid(__class__.__name__)
+    def __init__(self, _id=uid(__class__.__name__)):
         self.__worker_manager: WorkerManager = WorkerManager()
-
-    @property
-    def id(self):
-        return self.__id
-
-    @property
-    def result(self) -> AnalyseResult:
-        return self.__worker_manager.result
-
-    def weight(self):
-        return self.__worker_manager.weight()
+        # properties
+        self.id = property(lambda: self._id)
+        self.result = property(lambda: self.__worker_manager.result)
 
     def dispatch(self, *jobs: JobContainer):
-        for job in jobs:
-            self.__worker_manager.dispatch(job)
+        [self.__worker_manager.dispatch(job) for job in jobs]
 
     def start(self):
         self.__worker_manager.start()
