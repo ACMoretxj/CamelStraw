@@ -13,6 +13,9 @@ def start_server():
 
 
 def start_master():
+    def callback(status_code, content):
+        print(multiprocessing.current_process().name, status_code, content)
+
     jobs = (
         HttpGetJob('http://localhost:8000/http/get/?wxid=acmore', callback=callback),
         HttpPostJob('http://localhost:8000/http/post/', data={'wxid': 'acmore'}, callback=callback),
@@ -24,18 +27,8 @@ def start_master():
     master.start()
 
 
-def callback(status_code, content):
-    print(multiprocessing.current_process().name, status_code, content)
-
-
 def start_slave():
     slave = Slave()
-    jobs = (
-        HttpGetJob('http://localhost:8000/http/get/?wxid=acmore', callback=callback),
-        HttpPostJob('http://localhost:8000/http/post/', data={'wxid': 'acmore'}, callback=callback),
-        WebsocketTextJob('ws://localhost:8000/ws/text/', data='acmore', callback=callback),
-        WebsocketBinaryJob('ws://localhost:8000/ws/binary/', data=b'acmore', callback=callback),
-    )
     slave.start()
     print(slave.result)
 
@@ -48,12 +41,9 @@ if __name__ == '__main__':
     master_process = Process(target=start_master)
     master_process.start()
     # start slave
-
-    # # tests process is not necessary, you can just start it in the main process
-    # test_process = Process(target=start_test)
-    # test_process.start()
-    # test_process.join()
-    # server_process.terminate()
-
-    # slave = Slave()
-    # slave.start()
+    slave_process = Process(target=start_slave)
+    slave_process.start()
+    slave_process.join()
+    # stop other processes
+    server_process.terminate()
+    master_process.terminate()

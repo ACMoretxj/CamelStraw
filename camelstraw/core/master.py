@@ -35,9 +35,7 @@ class Master:
 
     def stop(self):
         tasks = [self.__stop_slave(slave) for slave in self.__slaves]
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(asyncio.gather(*tasks))
-        loop.close()
+        asyncio.ensure_future(asyncio.gather(*tasks))
         self.__service.shutdown()
         self.__service.cleanup()
 
@@ -55,9 +53,7 @@ class Master:
             job_groups[i % len(self.__slaves)].append(job)
         for i, slave in enumerate(self.__slaves.keys()):
             tasks.append(self.__init_slave(slave, job_groups[i]))
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(asyncio.gather(*tasks))
-        loop.close()
+        asyncio.ensure_future(asyncio.gather(*tasks))
 
     def __gather_result(self):
         if 'master' in self.__results:
