@@ -3,15 +3,14 @@ import multiprocessing
 import sys
 from multiprocessing import Process, cpu_count, Lock as ProcessLock, Queue
 from queue import Empty
-from typing import TypeVar, List
+from typing import List
 
 from ..settings import WORKER_TIMEOUT, WORKER_CHECK_INTERVAL
 from ..exception import WrongStatusException, WorkerExecuteException
 from .job import JobManager, Job, JobContainer
 from .interfaces import IAnalysable, IManager, CoreStatus, AnalyseResult
 from ..task import RoundRobin, IDispatchable
-from ..util import uid, singleton
-AllJobTypeHint = TypeVar('AllJobTypeHint', Job, JobContainer)
+from ..util import uid, singleton, readonly
 
 
 def __try_stop_and_analyse(worker):
@@ -109,8 +108,8 @@ class Worker(IAnalysable, IDispatchable):
     so that all the communication with main process should
     be done in a message queue
     """
-    def __init__(self, queue: Queue, weight=1):
-        self.__job_manager: JobManager = JobManager()
+    def __init__(self, queue, weight=1):
+        self.__job_manager = JobManager()
         super().__init__(uid(__class__.__name__), self.__job_manager)
         # the worker itself has an another lock for correctly perform stop & analyse action
         # ThreadLock(Lock in asyncio) can't be pickled, so using
@@ -118,13 +117,13 @@ class Worker(IAnalysable, IDispatchable):
         self.__lock = ProcessLock()
         # all workers user the same queue to communicate with manager
         self.__queue = queue
-        self.__weight: int = weight
+        self.__weight = weight
         # properties
-        self.lock = property(lambda: self.__lock)
-        self.queue = property(lambda: self.__queue)
-        self.job_num = property(lambda: len(list(self.__job_manager)))
+        readonly(self, 'lock', lambda: self.__lock)
+        readonly(self, 'queue', lambda: self.__queue)
+        readonly(self, 'job_num', lambda: len(list(self.__job_manager)))
 
-    def start(self) -> None:
+    def start(self):
         # not dispatched jobs, just return
         if self.job_num <= 0:
             return
@@ -132,14 +131,14 @@ class Worker(IAnalysable, IDispatchable):
         super().start()
         process.start()
 
-    def dispatch(self, job: Job) -> None:
+    def dispatch(self, job):
         if not isinstance(job, Job):
             raise TypeError('Worker.dispatch only accept Job type')
         if self.status != CoreStatus.INIT:
             raise WrongStatusException('Worker can only be dispatched job at init status')
         self.__job_manager.add(job)
 
-    def weight(self) -> int:
+    def weight(self):
         return self.__weight
 
 
@@ -148,19 +147,19 @@ class WorkerManager(IManager):
     """
     initialize workers and dispatch jobs for them
     """
-    def __init__(self, worker_num: int=cpu_count()):
+    def __init__(self, worker_num=cpu_count()):
         super().__init__(uid(__class__.__name__))
         self.__balancer = RoundRobin()
-        self.__worker_num: int = min(max(worker_num, 1), cpu_count() * 2)
+        self.__worker_num = min(max(worker_num, 1), cpu_count() * 2)
         # all workers communicate through this queue
-        self.__queue = Queue(maxsize=self.worker_num * 2)
-        self.__result: AnalyseResult = None
-        [self.add(Worker(queue=self.__queue)) for _ in range(self.worker_num)]
+        self.__queue = Queue(maxsize=self.__worker_num * 2)
+        self.__result = None
+        [self.add(Worker(queue=self.__queue)) for _ in range(self.__worker_num)]
         # properties
-        self.worker_num = property(lambda: self.__worker_num)
-        self.result = property(lambda: self.__result)
+        readonly(self, 'worker_num', lambda: self.__worker_num)
+        readonly(self, 'result', lambda: self.__result)
 
-    def dispatch(self, job: AllJobTypeHint, worker: Worker=None) -> None:
+    def dispatch(self, job, worker=None):
         if worker is None:
             worker = self.__balancer.choose(self._container)
         if isinstance(job, JobContainer):
@@ -171,7 +170,7 @@ class WorkerManager(IManager):
 
     def start(self):
         # eliminate workers without any job and update associate field
-        self._container = [worker for worker in self._container if worker.job_num > 0]
+        self._container = [worker for worker in self if worker.job_num > 0]
         self.__worker_num = len(self._container)
         # start all workers
         [worker.start() for worker in self._container]

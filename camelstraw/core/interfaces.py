@@ -1,18 +1,15 @@
 import json
 from abc import ABCMeta
-from collections import Iterable
 from enum import IntEnum
 from json import JSONDecodeError
-from typing import List, TypeVar, Dict
 
 from ..exception import WrongStatusException
-from ..util import Stopwatch, TimeFormat
-AnalyseResultType = TypeVar('AnalyseResultType', str, Dict)
+from ..util import Stopwatch, TimeFormat, readonly
 
 
 class CoreStatus(IntEnum):
 
-    def __new__(cls, value: int, phrase: str, description: str=''):
+    def __new__(cls, value, phrase, description=''):
         # noinspection PyArgumentList
         obj: int = int.__new__(cls, value)
         obj._value_ = value
@@ -30,7 +27,7 @@ class CoreStatus(IntEnum):
 class AnalyseResult:
 
     @classmethod
-    def from_json(cls, data: AnalyseResultType):
+    def from_json(cls, data):
         try:
             if isinstance(data, str):
                 data = json.loads(data)
@@ -50,7 +47,7 @@ class AnalyseResult:
                              start_time=data['start_time'], stop_time=data['stop_time'])
 
     @classmethod
-    def from_results(cls, _id: str, results: List):
+    def from_results(cls, _id, results):
         start_time = min(r.start_time for r in results)
         stop_time = max(r.stop_time for r in results)
         latency = stop_time - start_time
@@ -60,15 +57,14 @@ class AnalyseResult:
         return AnalyseResult(_id=_id, total_request=total_request, success_request=success_result,
                              latency=latency, qps=qps, start_time=start_time, stop_time=stop_time)
 
-    def __init__(self, _id: str, total_request: int, success_request: int, latency: int, qps: int,
-                 start_time: int, stop_time: int):
-        self.id = property(lambda: _id)
-        self.total_request = property(lambda: total_request)
-        self.success_request = property(lambda: success_request)
-        self.latency = property(lambda: latency)
-        self.qps = property(lambda: qps)
-        self.start_time = property(lambda: start_time)
-        self.stop_time = property(lambda: stop_time)
+    def __init__(self, _id, total_request, success_request, latency, qps, start_time, stop_time):
+        readonly(self, 'id', lambda: _id)
+        readonly(self, 'total_request', lambda: total_request)
+        readonly(self, 'success_request', lambda: success_request)
+        readonly(self, 'latency', lambda: latency)
+        readonly(self, 'qps', lambda: qps)
+        readonly(self, 'start_time', lambda: start_time)
+        readonly(self, 'stop_time', lambda: stop_time)
 
     def __repr__(self):
         reprs = [
@@ -106,21 +102,24 @@ class IAnalysable(metaclass=ABCMeta):
     Session/Job/Worker etc, for the convenience of computing
     and visualization
     """
-    def __init__(self, _id: str, _manager=None):
-        self._manager: IManager = _manager
-        self._status: CoreStatus = CoreStatus.INIT
-        self._stopwatch: Stopwatch = Stopwatch()
-        self._total_request: int = 0
-        self._success_request: int = 0
-        self._latency: int = 0
-        self._analyse_result: AnalyseResult = None
+    def __init__(self, _id, _manager=None):
+        self._manager = _manager
+        self._status = CoreStatus.INIT
+        self._stopwatch = Stopwatch()
+        self._total_request = 0
+        self._success_request = 0
+        self._latency = 0
+        self._analyse_result = None
+        # properties
+        readonly(self, 'id', lambda: _id)
+        readonly(self, 'qps', lambda: self.success_request * 1000 // max(1, self.latency))
+        readonly(self, 'start_time', lambda: self._stopwatch.start_time)
+        readonly(self, 'stop_time', lambda: self.start_time + self.latency)
+        readonly(self, 'status', lambda: self._status)
+        readonly(self, 'result', lambda: self._analyse_result)
 
-        self.id: property = property(lambda: _id)
-        self.qps = property(lambda: self.success_request * 1000 // max(1, self.latency))
-        self.start_time = property(lambda: self._stopwatch.start_time)
-        self.stop_time = property(lambda: self.start_time + self.latency)
-        self.status = property(lambda: self._status)
-        self.result = property(lambda: self._analyse_result)
+    def __repr__(self):
+        return str(self.result)
 
     @property
     def total_request(self) -> int:
@@ -129,13 +128,13 @@ class IAnalysable(metaclass=ABCMeta):
         return self._total_request
 
     @property
-    def success_request(self):
+    def success_request(self) -> int:
         if self.status != CoreStatus.ANALYSED:
             raise WrongStatusException('_success_request is not computed')
         return self._success_request
 
     @property
-    def latency(self):
+    def latency(self) -> int:
         if self.status != CoreStatus.ANALYSED:
             raise WrongStatusException('_latency is not computed')
         return self._latency
@@ -175,9 +174,6 @@ class IAnalysable(metaclass=ABCMeta):
                                                  success_request=self.success_request, latency=self.latency,
                                                  qps=self.qps, start_time=self.start_time, stop_time=self.stop_time)
 
-    def __repr__(self):
-        return str(self.result)
-
 
 class IManager(metaclass=ABCMeta):
     """
@@ -185,12 +181,12 @@ class IManager(metaclass=ABCMeta):
     SessionManager/JobManager/WorkerManager etc, collecting
     common logic for all managers
     """
-    def __init__(self, _id: str):
-        self.id = property(lambda: _id)
-        self._container: List = []
+    def __init__(self, _id):
+        readonly(self, 'id', lambda: _id)
+        self._container = []
 
-    def add(self, obj: IAnalysable) -> None:
-        self._container.append(obj)
-
-    def __iter__(self) -> Iterable:
+    def __iter__(self):
         return iter(self._container)
+
+    def add(self, obj):
+        self._container.append(obj)
