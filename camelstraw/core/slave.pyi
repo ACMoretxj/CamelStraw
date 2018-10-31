@@ -15,4 +15,6 @@ class Slave:
     def __init__(self, _id=uid('Slave')): pass
 
     def start(self) -> None: pass
+    def __start(self) -> None: pass
+    def __stop(self) -> None: pass
     async def __handler(self) -> asyncio.coroutine: pass

@@ -1,9 +1,12 @@
 import asyncio
 import multiprocessing
 import sys
-from multiprocessing import Process, cpu_count, Lock as ProcessLock, Queue
+from multiprocessing import Process, cpu_count, Queue, Manager as ProcessManager
 from queue import Empty
+from threading import Lock as ThreadLock
 from typing import List
+
+import dill
 
 from ..settings import WORKER_TIMEOUT, WORKER_CHECK_INTERVAL
 from ..exception import WrongStatusException, WorkerExecuteException
@@ -32,19 +35,23 @@ def __try_stop_and_analyse(worker):
             pass
 
 
-async def __work_timeout(worker, timeout=WORKER_TIMEOUT):
+async def __work_timeout(worker, timeout=None):
     """
     worker's stop trigger for timeout mechanism
     :param worker:
     :param timeout: seconds
     :return:
     """
-    if timeout is None or timeout <= 0:
+    if timeout is None:
+        timeout = WORKER_TIMEOUT
+    if timeout <= 0:
         timeout = sys.maxsize
     timeout = int(timeout)
     while timeout > 0 and worker.status == CoreStatus.STARTED:
         # take a nap and check the worker status
         await asyncio.sleep(1)
+        timeout -= 1
+        print('timeout %d' % timeout)
     __try_stop_and_analyse(worker)
 
 
@@ -85,16 +92,16 @@ async def __stop_work(worker, timeout=None) -> asyncio.Future:
     return asyncio.gather(*tasks)
 
 
-def start_work(jobs, worker, timeout=None) -> None:
+def start_work(worker_bytes, timeout=None) -> None:
     """
-    :param jobs:
-    :param worker
+    :param worker_bytes
     :param timeout:
     :return:
     """
     if multiprocessing.current_process().name == 'MainProcess':
         raise WorkerExecuteException('worker can only run at child process')
-    tasks = [job.start() for job in jobs]
+    worker: Worker = dill.loads(worker_bytes)
+    tasks = [job.start() for job in worker.jobs]
     tasks.append(__stop_work(worker, timeout))
     loop = asyncio.get_event_loop()
     loop.run_until_complete(asyncio.gather(*tasks))
@@ -108,27 +115,35 @@ class Worker(IAnalysable, IDispatchable):
     so that all the communication with main process should
     be done in a message queue
     """
+    def __new__(cls, *args, **kwargs):
+        # TODO: the following code seems duplicate to that in __init__, but it's a must when used in Process & dill
+        worker = super().__new__(cls)
+        readonly(worker, 'lock', lambda: None)
+        readonly(worker, 'queue', lambda: None)
+        readonly(worker, 'jobs', lambda: None)
+        readonly(worker, 'job_num', lambda: None)
+        return worker
+
     def __init__(self, queue, weight=1):
         self.__job_manager = JobManager()
         super().__init__(uid(__class__.__name__), self.__job_manager)
         # the worker itself has an another lock for correctly perform stop & analyse action
-        # ThreadLock(Lock in asyncio) can't be pickled, so using
-        # ProcessLock(Lock in multiprocessing) instead of ThreadLock
-        self.__lock = ProcessLock()
+        self.__lock = ThreadLock()
         # all workers user the same queue to communicate with manager
         self.__queue = queue
         self.__weight = weight
         # properties
         readonly(self, 'lock', lambda: self.__lock)
         readonly(self, 'queue', lambda: self.__queue)
+        readonly(self, 'jobs', lambda: (job for job in self.__job_manager))
         readonly(self, 'job_num', lambda: len(list(self.__job_manager)))
 
     def start(self):
         # not dispatched jobs, just return
         if self.job_num <= 0:
             return
-        process = Process(target=start_work, args=(list(self.__job_manager), self))
         super().start()
+        process = Process(target=start_work, args=(dill.dumps(self, recurse=True),))
         process.start()
 
     def dispatch(self, job):
@@ -152,7 +167,7 @@ class WorkerManager(IManager):
         self.__balancer = RoundRobin()
         self.__worker_num = min(max(worker_num, 1), cpu_count() * 2)
         # all workers communicate through this queue
-        self.__queue = Queue(maxsize=self.__worker_num * 2)
+        self.__queue = ProcessManager().Queue(maxsize=self.__worker_num * 2)
         self.__result = None
         [self.add(Worker(queue=self.__queue)) for _ in range(self.__worker_num)]
         # properties

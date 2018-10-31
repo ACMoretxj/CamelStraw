@@ -24,6 +24,12 @@ class Slave:
         loop.run_until_complete(self.__handler())
         loop.close()
 
+    def __start(self):
+        self.__worker_manager.start()
+
+    def __stop(self):
+        self.__worker_manager.stop()
+
     async def __handler(self):
         async with Client().ws_connect('ws://%s:%s/master/' % (MASTER, MASTER_PORT)) as ws:
             # send init request
@@ -57,10 +63,9 @@ class Slave:
                     for job_bytes in data['jobs']:
                         job = pickle.loads(bytes(job_bytes))
                         self.__worker_manager.dispatch(job)
-                    # start testing
-                    self.__worker_manager.start()
+                    self.__start()
                 elif 'stop' == data['command']:
-                    self.__worker_manager.stop()
+                    self.__stop()
                     report_data = {
                         'command': 'report',
                         'result': self.__worker_manager.result.json_result

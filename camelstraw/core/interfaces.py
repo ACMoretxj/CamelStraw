@@ -102,6 +102,17 @@ class IAnalysable(metaclass=ABCMeta):
     Session/Job/Worker etc, for the convenience of computing
     and visualization
     """
+    def __new__(cls, *args, **kwargs):
+        # TODO: the following code seems duplicate to that in __init__, but it's a must when used in Process & dill
+        inst = super().__new__(cls)
+        readonly(inst, 'id', lambda: None)
+        readonly(inst, 'qps', lambda: None)
+        readonly(inst, 'start_time', lambda: None)
+        readonly(inst, 'stop_time', lambda: None)
+        readonly(inst, 'status', lambda: None)
+        readonly(inst, 'result', lambda: None)
+        return inst
+
     def __init__(self, _id, _manager=None):
         self._manager = _manager
         self._status = CoreStatus.INIT
