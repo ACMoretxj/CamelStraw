@@ -6,7 +6,7 @@ import dill
 from aiohttp import web, ClientSession as Client, WSMsgType
 from aiohttp.web_app import Application
 
-from camelstraw.core.job import JobContainer
+from .job import JobContainer
 from .interfaces import AnalyseResult
 from ..settings import SLAVES, MASTER_PORT, MASTER
 from ..util import singleton, readonly

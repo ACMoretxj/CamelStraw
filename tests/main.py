@@ -16,6 +16,7 @@ def start_master():
         print(current_process().name, status_code, content)
 
     jobs = (
+        # WebsocketTextJob('ws://localhost:9683/text/', data='acmore', callback=callback, reuse_job=True),
         HttpGetJob('http://localhost:8000/http/get/?wxid=acmore', callback=callback, reuse_job=False),
         HttpPostJob('http://localhost:8000/http/post/', data={'wxid': 'acmore'}, callback=callback, reuse_job=False),
         WebsocketTextJob('ws://localhost:8000/ws/text/', data='acmore', callback=callback, reuse_job=False),

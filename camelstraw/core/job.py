@@ -125,7 +125,7 @@ class HttpGetJob(JobContainer):
         return inst
 
     def job(self):
-        if self._job is None:
+        if self._job is None or self.reuse_job:
             self._job = Job(url=self._url, data=self._data, headers=self._headers, cookies=self._cookies,
                             method=HttpMethod.GET, callback=self._callback)
         return self._job
@@ -142,7 +142,7 @@ class HttpPostJob(JobContainer):
         return inst
 
     def job(self):
-        if self._job is None:
+        if self._job is None or self.reuse_job:
             self._job = Job(url=self._url, data=self._data, headers=self._headers, cookies=self._cookies,
                             method=HttpMethod.POST, callback=self._callback)
         return self._job
@@ -159,7 +159,7 @@ class WebsocketTextJob(JobContainer):
         return inst
 
     def job(self):
-        if self._job is None:
+        if self._job is None or self.reuse_job:
             self._job = Job(url=self._url, data=self._data, headers=self._headers, cookies=self._cookies,
                             message_type=WSMsgType.TEXT, callback=self._callback)
         return self._job
@@ -176,7 +176,7 @@ class WebsocketBinaryJob(JobContainer):
         return inst
 
     def job(self):
-        if self._job is None:
+        if self._job is None or self.reuse_job:
             self._job = Job(url=self._url, data=self._data, headers=self._headers, cookies=self._cookies
                             , message_type=WSMsgType.BINARY, callback=self._callback)
         return self._job

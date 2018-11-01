@@ -3,7 +3,7 @@ import asyncio
 import dill
 from aiohttp import ClientSession as Client, WSMsgType
 
-from camelstraw.core.job import JobContainer
+from .job import JobContainer
 from ..net import get_host_ip
 from ..settings import MASTER, MASTER_PORT
 from ..util import uid, singleton, readonly
