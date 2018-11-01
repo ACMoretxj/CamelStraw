@@ -1,7 +1,7 @@
 import asyncio
 from abc import ABCMeta, abstractmethod
 from itertools import cycle, repeat
-from typing import Callable, Dict, Generator, Iterator
+from typing import Callable, Generator, Iterator
 
 from aiohttp import ClientSession as Client, ClientError, WSMessage
 from aiohttp import WSMsgType

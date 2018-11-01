@@ -1,6 +1,5 @@
-import multiprocessing
 import time
-from multiprocessing import Process
+from multiprocessing import Process, current_process
 
 from camelstraw import HttpGetJob, Slave, HttpPostJob, WebsocketTextJob, WebsocketBinaryJob
 from camelstraw.core.master import Master
@@ -14,8 +13,7 @@ def start_server():
 
 def start_master():
     def callback(status_code, content):
-        # print(multiprocessing.current_process().name, status_code, content)
-        pass
+        print(current_process().name, status_code, content)
 
     jobs = (
         HttpGetJob('http://localhost:8000/http/get/?wxid=acmore', callback=callback, reuse_job=False),
@@ -26,7 +24,7 @@ def start_master():
     master = Master()
     master.dispatch(*jobs)
     master.start()
-    time.sleep(100)
+    time.sleep(10)
     master.stop()
     print(master.result)
 
@@ -48,8 +46,3 @@ if __name__ == '__main__':
     # start slave
     slave_process = Process(target=start_slave)
     slave_process.start()
-
-    # stop processes
-    # slave_process.terminate()
-    # server_process.terminate()
-    # master_process.terminate()
