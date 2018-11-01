@@ -48,6 +48,6 @@ class WorkerManager(IManager):
     def __init__(self, worker_num: int=cpu_count()): pass
     def __iter__(self) -> Iterable[Worker]: pass
 
-    def dispatch(self, job: JobType, worker: Worker=None) -> None: pass
+    def dispatch(self, job: JobContainer, worker: Worker=None) -> None: pass
     def start(self) -> None: pass
     def stop(self) -> None: pass

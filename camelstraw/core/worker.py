@@ -52,7 +52,6 @@ async def __work_timeout(worker, timeout=None):
         await asyncio.sleep(1)
         timeout -= 1
     __try_stop_and_analyse(worker)
-    print(worker.result)
 
 
 async def __work_notice(worker):
@@ -78,7 +77,7 @@ async def __work_notice(worker):
     __try_stop_and_analyse(worker)
 
 
-async def __stop_work(worker, timeout=None) -> asyncio.Future:
+async def __stop_work(worker, timeout=None):
     """
     all worker's stop triggers
     :param worker:
@@ -92,7 +91,7 @@ async def __stop_work(worker, timeout=None) -> asyncio.Future:
     return asyncio.gather(*tasks)
 
 
-def start_work(worker_bytes, timeout=None) -> None:
+def start_work(worker_bytes, timeout=None):
     """
     :param worker_bytes
     :param timeout:
@@ -116,7 +115,7 @@ class Worker(IAnalysable, IDispatchable):
     be done in a message queue
     """
     def __new__(cls, *args, **kwargs):
-        # TODO: unknown problem.
+        # TODO: unknown dill problem.
         # the following code seems duplicate to that in __init__,
         # but it's a must when used in Process & dill
         worker = super().__new__(cls)
@@ -179,11 +178,10 @@ class WorkerManager(IManager):
     def dispatch(self, job, worker=None):
         if worker is None:
             worker = self.__balancer.choose(self._container)
-        if isinstance(job, JobContainer):
-            job = job.job()
-        elif isinstance(job, Job):
-            pass
-        worker.dispatch(job)
+        if job.reuse_job:
+            [worker.dispatch(job.job()) for worker in self]
+        else:
+            worker.dispatch(job.job())
 
     def start(self):
         # eliminate workers without any job and update associate field

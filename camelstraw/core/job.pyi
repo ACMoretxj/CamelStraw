@@ -28,28 +28,34 @@ class Job(IAnalysable):
     def __data_iterator(data: DataType) -> Iterator: pass
 
 class JobContainer(metaclass=ABCMeta):
+    _job: Job
     _url: str
     _data: DataType
     _headers: Dict
     _cookies: Dict
     _callback: Callable
-    _job = Job
 
-    def __init__(self, url: str, data: DataType=None, headers: Dict=None, cookies: Dict=None, callback: Callable=None): pass
+    reuse_job: bool
+
+    def __init__(self, url: str, data: DataType=None, headers: Dict=None, cookies: Dict=None, callback: Callable=None, reuse_job=True): pass
 
     @abstractmethod
     def job(self) -> Job: pass
 
 class HttpGetJob(JobContainer):
+    def __new__(cls, *args, **kwargs) -> JobContainer: pass
     def job(self) -> Job: pass
 
 class HttpPostJob(JobContainer):
+    def __new__(cls, *args, **kwargs) -> JobContainer: pass
     def job(self) -> Job: pass
 
 class WebsocketTextJob(JobContainer):
+    def __new__(cls, *args, **kwargs) -> JobContainer: pass
     def job(self) -> Job: pass
 
 class WebsocketBinaryJob(JobContainer):
+    def __new__(cls, *args, **kwargs) -> JobContainer: pass
     def job(self) -> Job: pass
 
 

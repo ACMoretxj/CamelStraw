@@ -7,6 +7,7 @@ from aiohttp import ClientSession as Client, ClientError, WSMessage
 from aiohttp import WSMsgType
 from aiohttp.http_exceptions import HttpProcessingError
 
+from camelstraw.util import readonly
 from .session import SessionManager
 from .interfaces import IAnalysable, IManager, CoreStatus
 from ..util import uid
@@ -98,13 +99,15 @@ class JobContainer(metaclass=ABCMeta):
     transform from arguments to Job instance, expose this instead of Job because
     multi-processing environment is error prone
     """
-    def __init__(self, url, data=None, headers=None, cookies=None, callback=None):
+    def __init__(self, url, data=None, headers=None, cookies=None, callback=None, reuse_job=True):
+        self._job = None
         self._url = url
         self._data = data
         self._headers = headers
         self._cookies = cookies
         self._callback = callback
-        self._job = None
+        # properties
+        readonly(self, 'reuse_job', lambda: reuse_job)
 
     @abstractmethod
     def job(self):
@@ -112,6 +115,15 @@ class JobContainer(metaclass=ABCMeta):
 
 
 class HttpGetJob(JobContainer):
+
+    def __new__(cls, *args, **kwargs):
+        # TODO: unknown dill problem.
+        # the following code seems duplicate to that in __init__,
+        # but it's a must when used in Process & dill
+        inst = super().__new__(cls)
+        readonly(inst, 'reuse_job', lambda: None)
+        return inst
+
     def job(self):
         if self._job is None:
             self._job = Job(url=self._url, data=self._data, headers=self._headers, cookies=self._cookies,
@@ -120,6 +132,15 @@ class HttpGetJob(JobContainer):
 
 
 class HttpPostJob(JobContainer):
+
+    def __new__(cls, *args, **kwargs):
+        # TODO: unknown dill problem.
+        # the following code seems duplicate to that in __init__,
+        # but it's a must when used in Process & dill
+        inst = super().__new__(cls)
+        readonly(inst, 'reuse_job', lambda: None)
+        return inst
+
     def job(self):
         if self._job is None:
             self._job = Job(url=self._url, data=self._data, headers=self._headers, cookies=self._cookies,
@@ -128,6 +149,15 @@ class HttpPostJob(JobContainer):
 
 
 class WebsocketTextJob(JobContainer):
+
+    def __new__(cls, *args, **kwargs):
+        # TODO: unknown dill problem.
+        # the following code seems duplicate to that in __init__,
+        # but it's a must when used in Process & dill
+        inst = super().__new__(cls)
+        readonly(inst, 'reuse_job', lambda: None)
+        return inst
+
     def job(self):
         if self._job is None:
             self._job = Job(url=self._url, data=self._data, headers=self._headers, cookies=self._cookies,
@@ -136,6 +166,15 @@ class WebsocketTextJob(JobContainer):
 
 
 class WebsocketBinaryJob(JobContainer):
+
+    def __new__(cls, *args, **kwargs):
+        # TODO: unknown dill problem.
+        # the following code seems duplicate to that in __init__,
+        # but it's a must when used in Process & dill
+        inst = super().__new__(cls)
+        readonly(inst, 'reuse_job', lambda: None)
+        return inst
+
     def job(self):
         if self._job is None:
             self._job = Job(url=self._url, data=self._data, headers=self._headers, cookies=self._cookies

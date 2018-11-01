@@ -85,13 +85,13 @@ class AnalyseResult:
         :return:
         """
         data = {
-            'id': '%s' % self.id,
-            'total_request': '%s' % self.total_request,
-            'success_request': '%s' % self.success_request,
-            'latency': '%s' % self.latency,
-            'qps': '%s' % self.qps,
-            'start_time': '%s' % self.start_time,
-            'stop_time': '%s' % self.stop_time
+            'id': self.id,
+            'total_request': self.total_request,
+            'success_request': self.success_request,
+            'latency': self.latency,
+            'qps': self.qps,
+            'start_time': self.start_time,
+            'stop_time': self.stop_time
         }
         return json.dumps(data)
 
@@ -103,7 +103,7 @@ class IAnalysable(metaclass=ABCMeta):
     and visualization
     """
     def __new__(cls, *args, **kwargs):
-        # TODO: unknown problem.
+        # TODO: unknown dill problem.
         # the following code seems duplicate to that in __init__,
         # but it's a must when used in Process & dill
         inst = super().__new__(cls)
