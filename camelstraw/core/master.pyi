@@ -9,7 +9,7 @@ from .interfaces import AnalyseResult
 from .job import JobContainer
 from ..settings import MASTER_PORT
 
-class Master:
+class MasterService:
     __service: Application
     __slaves: Dict[str, web.WebSocketResponse]
     __results: Dict[str, AnalyseResult]
@@ -29,3 +29,6 @@ class Master:
     def __gather_result(self) -> None: pass
     async def __handler(self, request: Request) -> asyncio.coroutine: pass
     async def __stop_slave(self, slave: str) -> asyncio.coroutine: pass
+
+class Master:
+    pass

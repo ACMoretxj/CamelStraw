@@ -1,19 +1,21 @@
 import time
 
+from camelstraw.util import readonly
+
 
 class Stopwatch:
 
     def __init__(self):
-        self.__start_time: float = None
+        self.__start_time = None
         # milliseconds
-        self.start_time = property(lambda: int(self.__start_time * 1000))
+        readonly(self, 'start_time', lambda: int(self.__start_time * 1000))
 
     def start(self):
         self.__start_time = time.time()
         return self
 
     @property
-    def elapsed_time(self) -> int:
+    def elapsed_time(self):
         if not self.__start_time:
             return 0
         return int((time.time() - self.__start_time) * 1000)
@@ -22,6 +24,6 @@ class Stopwatch:
 class TimeFormat:
 
     @staticmethod
-    def from_millisecond(milli: int, fmt='%Y-%m-%d %H:%M:%S') -> str:
+    def from_millisecond(milli, fmt='%Y-%m-%d %H:%M:%S'):
         stamp = time.localtime(milli / 1000)
         return time.strftime(fmt, stamp)

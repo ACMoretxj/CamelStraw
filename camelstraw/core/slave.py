@@ -2,6 +2,7 @@ import asyncio
 import pickle
 from json import JSONDecodeError
 
+import dill
 from aiohttp import ClientSession as Client, WSMsgType
 
 from ..net import get_host_ip
@@ -61,7 +62,7 @@ class Slave:
                 if 'init' == data['command']:
                     assert 'jobs' in data
                     for job_bytes in data['jobs']:
-                        job = pickle.loads(bytes(job_bytes))
+                        job = dill.loads(bytes(job_bytes))
                         self.__worker_manager.dispatch(job)
                     self.__start()
                 elif 'stop' == data['command']:

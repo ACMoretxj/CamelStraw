@@ -30,7 +30,7 @@ def __try_stop_and_analyse(worker):
             worker.stop()
             worker.analyse()
             # send compute result to worker manager
-            worker.queue.put(('result', worker.result))
+            worker.queue.put(('result', worker.result.json_result))
         except WrongStatusException:
             pass
 
@@ -51,8 +51,8 @@ async def __work_timeout(worker, timeout=None):
         # take a nap and check the worker status
         await asyncio.sleep(1)
         timeout -= 1
-        print('timeout %d' % timeout)
     __try_stop_and_analyse(worker)
+    print(worker.result)
 
 
 async def __work_notice(worker):
@@ -116,7 +116,9 @@ class Worker(IAnalysable, IDispatchable):
     be done in a message queue
     """
     def __new__(cls, *args, **kwargs):
-        # TODO: the following code seems duplicate to that in __init__, but it's a must when used in Process & dill
+        # TODO: unknown problem.
+        # the following code seems duplicate to that in __init__,
+        # but it's a must when used in Process & dill
         worker = super().__new__(cls)
         readonly(worker, 'lock', lambda: None)
         readonly(worker, 'queue', lambda: None)
@@ -200,7 +202,7 @@ class WorkerManager(IManager):
             message = self.__queue.get()
             # gather result message
             if message[0] == 'result':
-                tmp_results.append(message[1])
+                tmp_results.append(AnalyseResult.from_json(message[1]))
             # put other messages back
             else:
                 self.__queue.put(message)

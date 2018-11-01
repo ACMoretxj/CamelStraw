@@ -2,6 +2,7 @@ import asyncio
 import pickle
 from json import JSONDecodeError
 
+import dill
 from aiohttp import web, WSMsgType
 from aiohttp.web_app import Application
 
@@ -11,7 +12,7 @@ from ..util import singleton, readonly
 
 
 @singleton
-class Master:
+class MasterService:
     """
     global controller
     """
@@ -43,7 +44,7 @@ class Master:
         ws = self.__slaves[slave]
         data = {
             'command': 'init',
-            'jobs': [list(pickle.dumps(job)) for job in jobs]
+            'jobs': [list(dill.dumps(job)) for job in jobs]
         }
         await ws.send_json(data)
 
@@ -103,3 +104,7 @@ class Master:
         ws = self.__slaves[slave]
         data = {'command': 'stop'}
         await ws.send_json(data)
+
+
+class Master:
+    pass

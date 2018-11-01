@@ -12,12 +12,11 @@ def start_server():
     server.run()
 
 
-def callback(status_code, content):
-    # print(multiprocessing.current_process().name, status_code, content)
-    pass
-
-
 def start_master():
+    def callback(status_code, content):
+        # print(multiprocessing.current_process().name, status_code, content)
+        pass
+
     jobs = (
         HttpGetJob('http://localhost:8000/http/get/?wxid=acmore', callback=callback),
         HttpPostJob('http://localhost:8000/http/post/', data={'wxid': 'acmore'}, callback=callback),
