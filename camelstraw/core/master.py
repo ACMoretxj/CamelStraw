@@ -1,4 +1,4 @@
-import asyncio
+from asyncio import get_event_loop, ensure_future, gather
 from multiprocessing import Process
 from typing import List
 
@@ -40,11 +40,10 @@ class MasterService:
 
     async def __init_slave(self, slave, jobs):
         ws = self.__slaves[slave]
-        data = {
+        await ws.send_json({
             'command': 'init',
             'jobs': [list(dill.dumps(job)) for job in jobs]
-        }
-        await ws.send_json(data)
+        })
 
     def __init_slaves(self):
         tasks, job_groups = [], [[] for _ in range(len(self.__slaves))]
@@ -52,16 +51,17 @@ class MasterService:
             job_groups[i % len(self.__slaves)].append(job)
         for i, slave in enumerate(self.__slaves.keys()):
             tasks.append(self.__init_slave(slave, job_groups[i]))
-        asyncio.ensure_future(asyncio.gather(*tasks))
+        ensure_future(gather(*tasks))
 
     async def __stop_slave(self, slave):
         ws = self.__slaves[slave]
-        data = {'command': 'stop'}
-        await ws.send_json(data)
+        await ws.send_json({
+            'command': 'stop'
+        })
 
     def __stop_slaves(self):
         tasks = [self.__stop_slave(slave) for slave in self.__slaves]
-        asyncio.ensure_future(asyncio.gather(*tasks))
+        ensure_future(gather(*tasks))
 
     async def __gather_result(self):
         if 'master' in self.__results:
@@ -135,7 +135,7 @@ class Master:
         self.__process.start()
 
     def stop(self):
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         loop.run_until_complete(self.__stop())
         loop.close()
         self.__process.terminate()

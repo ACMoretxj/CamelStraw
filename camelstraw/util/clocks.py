@@ -25,5 +25,13 @@ class TimeFormat:
 
     @staticmethod
     def from_millisecond(milli, fmt='%Y-%m-%d %H:%M:%S'):
+        if milli is None:
+            return None
         stamp = time.localtime(milli / 1000)
         return time.strftime(fmt, stamp)
+
+    @staticmethod
+    def from_datetime(dtm, fmt='%Y-%m-%d %H:%M:%S'):
+        if dtm is None:
+            return None
+        dtm.strftime(fmt)

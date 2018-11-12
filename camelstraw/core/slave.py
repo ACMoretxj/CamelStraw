@@ -1,4 +1,4 @@
-import asyncio
+from asyncio import get_event_loop
 
 import dill
 from aiohttp import ClientSession as Client, WSMsgType
@@ -20,7 +20,7 @@ class Slave:
         readonly(self, 'result', lambda: self.__worker_manager.result)
 
     def start(self):
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         loop.run_until_complete(self.__handler())
         loop.close()
 
@@ -55,7 +55,7 @@ class Slave:
                     report_data = {
                         'command': 'report',
                         'slave': get_host_ip(),
-                        'result': self.__worker_manager.result.json_result
+                        'result': self.result.json_result
                     }
                     await ws.send_json(report_data)
                     break

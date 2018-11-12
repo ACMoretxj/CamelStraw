@@ -13,8 +13,6 @@ Markdown==3.0.1
 MarkupSafe==1.0
 mkdocs==1.0.4
 multidict==4.4.2
-multiprocess==0.70.6.1
-pathos==0.2.2.1
 pox==0.2.4
 ppft==1.6.4.8
 pyreadline==2.1

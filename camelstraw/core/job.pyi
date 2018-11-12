@@ -13,10 +13,12 @@ DataType = TypeVar('DataType', Dict, str, bytes, Callable, Generator, Iterator)
 # noinspection PyMissingConstructor
 class Job(IAnalysable):
     __session_manager: SessionManager
-    __protocol: Protocol
-    __url: str
     __job_kwargs: Dict
-    
+
+    protocol: Protocol
+    url: str
+
+    def __new__(cls, *args, **kwargs): pass
     def __init__(self, url: str, **kwargs): pass
     
     async def start(self) -> asyncio.coroutine: pass

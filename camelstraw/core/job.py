@@ -18,12 +18,22 @@ class Job(IAnalysable):
     """
     execution unit
     """
+    def __new__(cls, *args, **kwargs):
+        # TODO: unknown dill problem.
+        # the following code seems duplicate to that in __init__,
+        # but it's a must when used in Process & dill
+        job = super().__new__(cls)
+        readonly(job, 'protocol', lambda: None)
+        readonly(job, 'url', lambda: None)
+        return job
+
     def __init__(self, url: str, **kwargs):
         self.__session_manager = SessionManager()
         super().__init__(uid(__class__.__name__), self.__session_manager)
-        self.__protocol = Protocol.from_url(url)
-        self.__url = url
         self.__job_kwargs = kwargs
+        # properties
+        readonly(self, 'protocol', lambda: Protocol.from_url(url))
+        readonly(self, 'url', lambda: url)
 
     async def start(self) -> asyncio.coroutine:
         super().start()
@@ -48,24 +58,24 @@ class Job(IAnalysable):
             return repeat(data or {})
 
     async def __do_request(self, data, headers=None, cookies=None, callback=None):
-        if self.__protocol == Protocol.HTTP or self.__protocol == Protocol.HTTPS:
+        if self.protocol == Protocol.HTTP or self.protocol == Protocol.HTTPS:
             method = self.__job_kwargs.get('method', HttpMethod.GET)
             async with Client(headers=headers, cookies=cookies) as client:
                 await self.__do_http_request(client, method, data, callback)
-        elif self.__protocol == Protocol.WS or self.__protocol == Protocol.WSS:
+        elif self.protocol == Protocol.WS or self.protocol == Protocol.WSS:
             message_type = self.__job_kwargs.get('message_type', WSMsgType.TEXT)
-            async with Client(headers=headers, cookies=cookies).ws_connect(self.__url) as ws:
+            async with Client(headers=headers, cookies=cookies).ws_connect(self.url) as ws:
                 await self.__do_websocket_request(ws, message_type, data, callback)
 
     async def __do_http_request(self, client, method, data, callback=None):
         while self.status == CoreStatus.STARTED:
-            self.__session_manager.open(self.__protocol, self.__url)
+            self.__session_manager.open(self.protocol, self.url)
             try:
                 response = None
                 if method == HttpMethod.GET:
-                    response = await client.get(self.__url, params=next(data))
+                    response = await client.get(self.url, params=next(data))
                 elif method == HttpMethod.POST:
-                    response = await client.post(self.__url, json=next(data))
+                    response = await client.post(self.url, json=next(data))
                 # record result and call callback
                 content = await response.text() if response else 'empty message'
                 self.__session_manager.close(response.status)
@@ -76,7 +86,7 @@ class Job(IAnalysable):
 
     async def __do_websocket_request(self, ws, message_type, data, callback=None):
         while self.status == CoreStatus.STARTED:
-            self.__session_manager.open(self.__protocol, self.__url)
+            self.__session_manager.open(self.protocol, self.url)
             try:
                 if message_type == WSMsgType.TEXT:
                     await ws.send_str(next(data))

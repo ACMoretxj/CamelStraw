@@ -4,6 +4,8 @@ START_MODE = 'command'
 WORKER_CHECK_INTERVAL = 1
 # default timeout for each worker
 WORKER_TIMEOUT = -1
+# test duration (seconds)
+TEST_DURATION = 60
 
 MASTER = '10.172.143.48'
 MASTER_PORT = 9001

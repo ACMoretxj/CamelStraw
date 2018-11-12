@@ -1,4 +1,4 @@
-import asyncio
+from asyncio import get_event_loop, ensure_future, gather, sleep
 import multiprocessing
 import sys
 from multiprocessing import Process, cpu_count, Queue, Manager as ProcessManager
@@ -49,7 +49,7 @@ async def __work_timeout(worker, timeout=None):
     timeout = int(timeout)
     while timeout > 0 and worker.status == CoreStatus.STARTED:
         # take a nap and check the worker status
-        await asyncio.sleep(1)
+        await sleep(1)
         timeout -= 1
     __try_stop_and_analyse(worker)
 
@@ -73,7 +73,7 @@ async def __work_notice(worker):
         except Empty:
             pass
         # wait several seconds and go on getting
-        await asyncio.sleep(interval)
+        await sleep(interval)
     __try_stop_and_analyse(worker)
 
 
@@ -88,7 +88,7 @@ async def __stop_work(worker, timeout=None):
         __work_notice(worker),
         __work_timeout(worker, timeout),
     )
-    return asyncio.gather(*tasks)
+    return gather(*tasks)
 
 
 def start_work(worker_bytes, timeout=None):
@@ -102,8 +102,8 @@ def start_work(worker_bytes, timeout=None):
     worker: Worker = dill.loads(worker_bytes)
     tasks = [job.start() for job in worker.jobs]
     tasks.append(__stop_work(worker, timeout))
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(asyncio.gather(*tasks))
+    loop = get_event_loop()
+    loop.run_until_complete(gather(*tasks))
     loop.close()
 
 
@@ -140,11 +140,8 @@ class Worker(IAnalysable, IDispatchable):
         readonly(self, 'job_num', lambda: len(list(self.__job_manager)))
 
     def start(self):
-        # not dispatched jobs, just return
-        if self.job_num <= 0:
-            return
         super().start()
-        process = Process(target=start_work, args=(dill.dumps(self, recurse=True),))
+        process = Process(target=start_work, args=(dill.dumps(self),))
         process.start()
 
     def dispatch(self, job):

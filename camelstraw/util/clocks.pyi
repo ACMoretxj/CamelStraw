@@ -1,3 +1,6 @@
+from datetime import datetime
+
+
 class Stopwatch:
     __start_time: int
     start_time: int
@@ -7,3 +10,5 @@ class Stopwatch:
 class TimeFormat:
     @staticmethod
     def from_millisecond(milli: int, fmt='%Y-%m-%d %H:%M:%S') -> str: pass
+    @staticmethod
+    def from_datetime(dtm: datetime, fmt='%Y-%m-%d %H:%M:%S') -> str: pass

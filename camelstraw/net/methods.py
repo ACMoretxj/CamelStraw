@@ -3,7 +3,7 @@ from enum import IntEnum
 
 class HttpMethod(IntEnum):
 
-    def __new__(cls, value: int, phrase: str, description: str=''):
+    def __new__(cls, value, phrase, description=''):
         # noinspection PyArgumentList
         obj: int = int.__new__(cls, value)
         obj._value_ = value
