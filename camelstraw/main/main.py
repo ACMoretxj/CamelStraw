@@ -1,6 +1,7 @@
 import argparse
 from multiprocessing import cpu_count
 
+from .launchers import CmdLauncher, WebLauncher
 from ..settings import TEST_DURATION
 from ..net import HttpMethod
 
@@ -22,7 +23,8 @@ def cmd_main():
                              '\'http://example.com?arg1=value1&arg2=val2\', when you use HttpPost method, the arguments'
                              ' will be parsed to json format and sent to \'http://example.com\' as a payload.')
     args = parser.parse_args()
-    # TODO: 2018.11.12
+    launcher = CmdLauncher(worker_num=args.worker_num, duration=args.duration, method=args.method, urls=args.urls)
+    launcher.launch()
 
 
 def web_main():
@@ -33,4 +35,5 @@ def web_main():
     parser.add_argument('-p', '--port', metavar='Port', dest='port', action='store', nargs='?',
                         default=4869, type=int, help='the port the web service listens to, default value is 4869.')
     args = parser.parse_args()
-    # TODO: 2018.11.12
+    launcher = WebLauncher(host=args.host, port=args.port)
+    launcher.launch()
