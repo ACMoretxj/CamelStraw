@@ -23,7 +23,7 @@ class MasterService:
         self.__slaves = {}
         self.__results = {}
         # properties
-        readonly(self, 'jobs', lambda: jobs),
+        readonly(self, 'jobs', lambda: jobs)
         readonly(self, 'host', lambda: host)
         readonly(self, 'port', lambda: port)
         readonly(self, 'result', lambda: self.__results.get('master', None))
@@ -146,7 +146,6 @@ class Master:
             await ws.send_json({'command': 'stop'})
             # receive result
             data = await ws.receive_json()
-            assert 'command' in data
-            assert 'report' == data['command']
+            assert 'command' in data and 'report' == data['command']
             assert 'result' in data
             self.__result = AnalyseResult.from_json(data['result'])

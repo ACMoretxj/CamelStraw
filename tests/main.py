@@ -1,8 +1,7 @@
 import time
 from multiprocessing import Process, current_process
 
-from camelstraw import HttpGetJob, Slave, HttpPostJob, WebsocketTextJob, WebsocketBinaryJob
-from camelstraw.core.master import Master
+from camelstraw import HttpGetJob, Slave, HttpPostJob, WebsocketTextJob, WebsocketBinaryJob, Master
 from tests.server import TestServer
 
 

@@ -20,8 +20,8 @@ def cmd_main():
     parser.add_argument('-p', '--path', metavar='Path', dest='urls', action='append', nargs='+',
                         help='request urls, you can offer more than one urls, whatever the method is, '
                              'you should always provide arguments in url (just like a HttpGet request), for example '
-                             '\'http://example.com?arg1=value1&arg2=val2\', when you use HttpPost method, the arguments'
-                             ' will be parsed to json format and sent to \'http://example.com\' as a payload.')
+                             '\'http://example.com?arg1=value1&arg2=value2\', when you use HttpPost method, the '
+                             'arguments will be parsed to json format and sent to \'http://example.com\' as a payload.')
     args = parser.parse_args()
     launcher = CmdLauncher(worker_num=args.worker_num, duration=args.duration, method=args.method, urls=args.urls)
     launcher.launch()
