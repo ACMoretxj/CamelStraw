@@ -41,9 +41,8 @@ class Master:
 
     result: AnalyseResult
 
-    def __init__(self): pass
+    def __init__(self, *jobs: JobContainer): pass
 
-    def dispatch(self, *jobs: JobContainer) -> None: pass
     def start(self) -> None: pass
     def stop(self) -> None: pass
     async def __stop(self) -> asyncio.coroutine: pass

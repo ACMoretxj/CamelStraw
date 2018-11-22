@@ -9,6 +9,10 @@ class Launcher(metaclass=ABCMeta):
     def launch(self, *args, **kwargs) -> None: pass
 
 class CmdLauncher(Launcher):
+    worker_num: int
+    duration: int
+    method: HttpMethod
+    urls: List[str]
     def __init__(self, worker_num: int, duration: int, method: HttpMethod, urls: List[str]): pass
     def launch(self, *args, **kwargs) -> None: pass
 

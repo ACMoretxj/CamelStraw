@@ -120,15 +120,12 @@ def start_service(jobs_bytes):
 @singleton
 class Master:
 
-    def __init__(self):
+    def __init__(self, *jobs):
         self.__process = None
-        self.__jobs = []
+        self.__jobs = list(jobs)
         self.__result = None
         # properties
         readonly(self, 'result', lambda: self.__result)
-
-    def dispatch(self, *jobs):
-        self.__jobs.extend(jobs)
 
     def start(self):
         self.__process = Process(target=start_service, args=(dill.dumps(self.__jobs),))

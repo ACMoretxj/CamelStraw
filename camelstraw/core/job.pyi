@@ -43,6 +43,8 @@ class JobContainer(metaclass=ABCMeta):
 
     @abstractmethod
     def job(self) -> Job: pass
+    @staticmethod
+    def from_url(url: str, method: HttpMethod) -> JobContainer: pass
 
 class HttpGetJob(JobContainer):
     def __new__(cls, *args, **kwargs) -> JobContainer: pass

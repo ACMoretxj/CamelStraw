@@ -2,6 +2,7 @@ import asyncio
 from abc import ABCMeta, abstractmethod
 from itertools import cycle, repeat
 from typing import Callable, Generator, Iterator
+from urllib.parse import urlparse, parse_qs, ParseResult
 
 from aiohttp import ClientSession as Client, ClientError, WSMessage
 from aiohttp import WSMsgType
@@ -122,6 +123,18 @@ class JobContainer(metaclass=ABCMeta):
     @abstractmethod
     def job(self):
         pass
+
+    @staticmethod
+    def from_url(url, method):
+        if method == HttpMethod.GET:
+            return HttpGetJob(url=url)
+        elif method == HttpMethod.POST:
+            result: ParseResult = urlparse(url)
+            url = '%s://%s%s' % (result.scheme, result.netloc, result.path)
+            data = {key: value[0] for key, value in parse_qs(result.query).items()}
+            return HttpPostJob(url=url, data=data)
+        else:
+            NotImplementedError('Only support Get and Post method.')
 
 
 class HttpGetJob(JobContainer):

@@ -21,8 +21,7 @@ def start_master():
         WebsocketTextJob('ws://localhost:8000/ws/text/', data='acmore', callback=callback, reuse_job=False),
         WebsocketBinaryJob('ws://localhost:8000/ws/binary/', data=b'acmore', callback=callback, reuse_job=False),
     )
-    master = Master()
-    master.dispatch(*jobs)
+    master = Master(*jobs)
     master.start()
     time.sleep(10)
     master.stop()
