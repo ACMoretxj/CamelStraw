@@ -6,7 +6,6 @@ import dill
 from aiohttp import web, ClientSession as Client, WSMsgType
 from aiohttp.web_app import Application
 
-from .slave import Slave
 from .job import JobContainer
 from .interfaces import AnalyseResult
 from ..settings import SLAVES, MASTER_PORT, MASTER
@@ -132,13 +131,10 @@ class Master:
         readonly(self, 'result', lambda: self.__result)
         readonly(self, 'worker_num', lambda: worker_num)
 
-    def start(self, local_mode=True):
+    def start(self):
         self.__process = Process(target=start_service, args=(
             dill.dumps(self.jobs), self.worker_num))
         self.__process.start()
-        if local_mode:
-            slave = Slave()
-            slave.start()
 
     def stop(self):
         loop = get_event_loop()

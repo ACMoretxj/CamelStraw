@@ -46,6 +46,6 @@ class Master:
 
     def __init__(self, *jobs: JobContainer, worker_num: int=None): pass
 
-    def start(self, local_mode: bool=True) -> None: pass
+    def start(self) -> None: pass
     def stop(self) -> None: pass
     async def __stop(self) -> asyncio.coroutine: pass

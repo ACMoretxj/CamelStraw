@@ -1,7 +1,7 @@
-from asyncio import get_event_loop, ensure_future, gather, sleep
+from asyncio import get_event_loop, gather, sleep
 import multiprocessing
 import sys
-from multiprocessing import Process, cpu_count, Queue, Manager as ProcessManager
+from multiprocessing import Process, cpu_count, Manager as ProcessManager
 from queue import Empty
 from threading import Lock as ThreadLock
 from typing import List
@@ -10,7 +10,7 @@ import dill
 
 from ..settings import WORKER_TIMEOUT, WORKER_CHECK_INTERVAL
 from ..exception import WrongStatusException, WorkerExecuteException
-from .job import JobManager, Job, JobContainer
+from .job import JobManager, Job
 from .interfaces import IAnalysable, IManager, CoreStatus, AnalyseResult
 from ..task import RoundRobin, IDispatchable
 from ..util import uid, singleton, readonly

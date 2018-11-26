@@ -1,6 +1,6 @@
 import asyncio
 from multiprocessing import Queue, Lock, cpu_count
-from typing import List, TypeVar, Iterable
+from typing import TypeVar, Iterable
 
 from .job import Job, JobManager, JobContainer
 from .interfaces import IAnalysable, IManager, AnalyseResult

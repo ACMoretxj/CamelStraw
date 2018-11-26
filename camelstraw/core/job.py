@@ -8,10 +8,9 @@ from aiohttp import ClientSession as Client, ClientError, WSMessage
 from aiohttp import WSMsgType
 from aiohttp.http_exceptions import HttpProcessingError
 
-from camelstraw.util import readonly
 from .session import SessionManager
 from .interfaces import IAnalysable, IManager, CoreStatus
-from ..util import uid
+from ..util import uid, readonly
 from ..net import Protocol, HttpMethod
 
 
