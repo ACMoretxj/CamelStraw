@@ -163,7 +163,7 @@ class WorkerManager(IManager):
     def __init__(self, worker_num=cpu_count()):
         super().__init__(uid(__class__.__name__))
         self.__balancer = RoundRobin()
-        self.__worker_num = min(max(worker_num, 1), cpu_count() * 2)
+        self.__worker_num = min(max(worker_num or cpu_count(), 1), cpu_count() * 2)
         # all workers communicate through this queue
         self.__queue = ProcessManager().Queue(maxsize=self.__worker_num * 2)
         self.__result = None

@@ -8,9 +8,10 @@ from ..net import HttpMethod
 
 def cmd_main():
     parser = argparse.ArgumentParser(description='CamelStraw command line tool.')
+    # though the default value None here, the real default value will be set to cpu_count() in WorkerManager
     parser.add_argument('-w', '--worker', metavar='WorkerNumber', dest='worker_num', action='store', nargs='?',
-                        default=cpu_count(), type=int, help='worker number, every worker owns a standalone process, '
-                                                            'default value is the number of your cpu.')
+                        default=None, type=int, help='worker number, every worker owns a standalone process, '
+                                                     'default value is the number of your cpu.')
     parser.add_argument('-t', '--timeout', metavar='Timeout', dest='duration', action='store', nargs='?',
                         default=TEST_DURATION, type=int, help='test duration (seconds), default value is 60.')
     parser.add_argument('-m', '--method', metavar='Method', dest='method', action='store', nargs='?',
@@ -23,7 +24,7 @@ def cmd_main():
                              '\'http://example.com?arg1=value1&arg2=value2\', when you use HttpPost method, the '
                              'arguments will be parsed to json format and sent to \'http://example.com\' as a payload.')
     args = parser.parse_args()
-    launcher = CmdLauncher(worker_num=args.worker_num, duration=args.duration, method=args.method, urls=args.urls)
+    launcher = CmdLauncher(duration=args.duration, worker_num=args.worker_num, method=args.method, urls=args.urls)
     launcher.launch()
 
 

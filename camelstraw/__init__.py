@@ -1,2 +1,2 @@
-from .core import HttpGetJob, HttpPostJob, WebsocketTextJob, WebsocketBinaryJob, Slave, Master
-from .main import cmd_main, web_main
+from .core import HttpGetJob, HttpPostJob, WebsocketTextJob, WebsocketBinaryJob
+from .main import cmd_main, web_main, Launcher

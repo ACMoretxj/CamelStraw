@@ -18,7 +18,7 @@ class SlaveService:
     that main program can interact with slave without being blocked
     """
     def __init__(self, _id=uid('Slave-Service')):
-        self.__worker_manager = WorkerManager()
+        self.__worker_manager = None
         # properties
         readonly(self, 'id', lambda: _id)
         readonly(self, 'result', lambda: self.__worker_manager.result)
@@ -43,6 +43,8 @@ class SlaveService:
                 assert 'command' in data
                 # init command
                 if 'init' == data['command']:
+                    worker_num = data.get('worker_num', None)
+                    self.__worker_manager = WorkerManager(worker_num)
                     assert 'jobs' in data
                     for job_bytes in data['jobs']:
                         job: JobContainer = dill.loads(bytes(job_bytes))

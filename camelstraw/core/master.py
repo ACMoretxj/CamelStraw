@@ -6,6 +6,7 @@ import dill
 from aiohttp import web, ClientSession as Client, WSMsgType
 from aiohttp.web_app import Application
 
+from .slave import Slave
 from .job import JobContainer
 from .interfaces import AnalyseResult
 from ..settings import SLAVES, MASTER_PORT, MASTER
@@ -17,13 +18,14 @@ class MasterService:
     """
     global controller
     """
-    def __init__(self, jobs, host='0.0.0.0', port=MASTER_PORT):
+    def __init__(self, jobs, worker_num=None, host='0.0.0.0', port=MASTER_PORT):
         self.__app = Application()
         self.__master = None
         self.__slaves = {}
         self.__results = {}
         # properties
         readonly(self, 'jobs', lambda: jobs)
+        readonly(self, 'worker_num', lambda: worker_num)
         readonly(self, 'host', lambda: host)
         readonly(self, 'port', lambda: port)
         readonly(self, 'result', lambda: self.__results.get('master', None))
@@ -38,10 +40,11 @@ class MasterService:
         ])
         web.run_app(self.__app, host=self.host, port=self.port)
 
-    async def __init_slave(self, slave, jobs):
+    async def __init_slave(self, slave, jobs, worker_num):
         ws = self.__slaves[slave]
         await ws.send_json({
             'command': 'init',
+            'worker_num': worker_num,
             'jobs': [list(dill.dumps(job)) for job in jobs]
         })
 
@@ -50,7 +53,7 @@ class MasterService:
         for i, job in enumerate(self.jobs):
             job_groups[i % len(self.__slaves)].append(job)
         for i, slave in enumerate(self.__slaves.keys()):
-            tasks.append(self.__init_slave(slave, job_groups[i]))
+            tasks.append(self.__init_slave(slave, job_groups[i], self.worker_num))
         ensure_future(gather(*tasks))
 
     async def __stop_slave(self, slave):
@@ -111,25 +114,31 @@ class MasterService:
         return ws
 
 
-def start_service(jobs_bytes):
+def start_service(jobs_bytes, worker_num):
     jobs: List[JobContainer] = dill.loads(jobs_bytes)
-    service: MasterService = MasterService(jobs=jobs)
+    service: MasterService = MasterService(jobs=jobs, worker_num=worker_num)
     service.start()
 
 
 @singleton
 class Master:
 
-    def __init__(self, *jobs):
+    def __init__(self, *jobs, worker_num=None):
         self.__process = None
         self.__jobs = list(jobs)
         self.__result = None
         # properties
+        readonly(self, 'jobs', lambda: self.__jobs)
         readonly(self, 'result', lambda: self.__result)
+        readonly(self, 'worker_num', lambda: worker_num)
 
-    def start(self):
-        self.__process = Process(target=start_service, args=(dill.dumps(self.__jobs),))
+    def start(self, local_mode=True):
+        self.__process = Process(target=start_service, args=(
+            dill.dumps(self.jobs), self.worker_num))
         self.__process.start()
+        if local_mode:
+            slave = Slave()
+            slave.start()
 
     def stop(self):
         loop = get_event_loop()
